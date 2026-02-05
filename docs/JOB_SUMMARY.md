@@ -7,24 +7,33 @@ The AI Data Generator has been enhanced with full Databricks job deployment capa
 ### 📦 Package Contents
 
 ```
-DataGenerator/
+dbx_ai_synth_data/
 ├── Core Script
 │   └── ai_data_generator.py          - Enhanced with widget parameters
 │
 ├── Bundle Configuration
-│   ├── databricks.yml                - Main bundle config
-│   └── resources/
-│       └── jobs.yml                  - Job definitions
+│   ├── bundle/
+│   │   ├── databricks.yml            - Main bundle config (with sync)
+│   │   └── resources/
+│   │       └── jobs.yml              - Job definitions
 │
 ├── Documentation
-│   ├── DEPLOYMENT.md                 - Deployment guide
-│   ├── job_parameters.conf           - Parameter templates
-│   ├── README.md                     - Feature documentation
-│   ├── QUICKSTART.md                 - Quick start guide
-│   ├── EXAMPLES.md                   - 19+ usage examples
-│   ├── ARCHITECTURE.md               - Technical details
-│   └── INDEX.md                      - Navigation guide
+│   ├── docs/
+│   │   ├── DEPLOYMENT.md             - Deployment guide
+│   │   ├── QUICKSTART.md             - Quick start guide
+│   │   ├── EXAMPLES.md               - 19+ usage examples
+│   │   ├── ARCHITECTURE.md           - Technical details
+│   │   ├── JOB_SUMMARY.md            - This file
+│   │   └── QUICK_REFERENCE.md        - Command reference
+│   └── bundle/
+│       ├── README.md                 - Bundle-specific docs
+│       └── job_parameters.conf       - Parameter templates
 ```
+
+### Key Features
+- ✅ **Automatic File Sync**: `ai_data_generator.py` synced to workspace during deployment
+- ✅ **Relative Paths**: Jobs use `${workspace.file_path}` for environment-agnostic references
+- ✅ **Multi-Environment**: Dev, staging, prod with separate configurations
 
 ## ✨ Key Enhancements
 
@@ -46,22 +55,19 @@ The `ai_data_generator.py` script now accepts parameters via Databricks widgets:
 
 ### 2. Pre-Configured Jobs
 
-Five ready-to-use jobs are included:
+Four ready-to-use jobs are included:
 
 #### `ai_data_generator_job`
 Generic template with customizable parameters.
 
 #### `generate_patients_job`
-Healthcare patient records (500 rows).
+Healthcare patient records (50,000 rows).
 
 #### `generate_products_job`
-Retail product inventory (200 rows) with custom schema.
+Retail product inventory (20,000 rows) with custom schema.
 
 #### `generate_transactions_job`
-Finance transactions (1000 rows).
-
-#### `generate_complete_dataset_job`
-Multi-table generation (customers → products → orders).
+Finance transactions (10,000 rows).
 
 ### 3. Environment Support
 
@@ -75,16 +81,20 @@ Three deployment environments configured:
 
 ### Setup
 ```bash
-cd DataGenerator
+cd bundle
 
-# Update workspace URL in databricks.yml
+# ⚠️ IMPORTANT: Update workspace URL in databricks.yml (line 42)
+# Edit: host: "https://your-actual-workspace.cloud.databricks.net/"
+
+# Update catalog and schema for your workspace (in targets section)
+
 # Then validate
-databricks bundle validate
+databricks bundle validate -t dev
 ```
 
 ### Deploy
 ```bash
-# Development
+# Development (automatically syncs ai_data_generator.py)
 databricks bundle deploy -t dev
 
 # Staging
@@ -93,6 +103,8 @@ databricks bundle deploy -t staging
 # Production
 databricks bundle deploy -t prod
 ```
+
+**Note**: The bundle automatically syncs `../ai_data_generator.py` to your workspace during deployment.
 
 ### Run Jobs
 ```bash
@@ -103,9 +115,6 @@ databricks bundle run ai_data_generator_job -t dev
 databricks bundle run generate_patients_job -t dev
 databricks bundle run generate_products_job -t dev
 databricks bundle run generate_transactions_job -t dev
-
-# Run multi-table job
-databricks bundle run generate_complete_dataset_job -t dev
 ```
 
 ### Customize at Runtime
@@ -221,7 +230,7 @@ base_parameters:
   table_name: "products"
   target_catalog: ${var.catalog}
   target_schema: ${var.schema}
-  num_rows: "200"
+  num_rows: "20000"
   custom_schema_json: '{"product_id": "INT", "product_name": "STRING", "price": "DOUBLE", "stock": "INT"}'
   column_constraints_json: '{"product_id": "Range 1-200", "price": "Between 10.00 and 500.00"}'
 ```
@@ -327,22 +336,24 @@ databricks auth login --host https://your-workspace.cloud.databricks.com
 
 | Document | Purpose | When to Read |
 |----------|---------|--------------|
-| **INDEX.md** | Navigation | Start here |
 | **QUICKSTART.md** | Getting started | First time use |
 | **DEPLOYMENT.md** | Job deployment | Setting up jobs |
-| **job_parameters.conf** | Parameter templates | Configuring jobs |
+| **../bundle/job_parameters.conf** | Parameter templates | Configuring jobs |
 | **EXAMPLES.md** | Usage examples | Finding templates |
-| **README.md** | Full features | Understanding capabilities |
+| **../README.md** | Full features | Understanding capabilities |
 | **ARCHITECTURE.md** | Technical details | Deep dive |
+| **../bundle/README.md** | Bundle setup | Bundle configuration |
 
 ## 🎯 Next Steps
 
 1. **Review Configuration**
-   - Update `databricks.yml` with your workspace URL
-   - Review job definitions in `resources/jobs.yml`
+   - Update `bundle/databricks.yml` with your workspace URL (line 42) - REQUIRED!
+   - Update catalog and schema in environment targets
+   - Review job definitions in `bundle/resources/jobs.yml`
 
 2. **Deploy to Dev**
    ```bash
+   cd bundle
    databricks bundle deploy -t dev
    ```
 
@@ -353,7 +364,7 @@ databricks auth login --host https://your-workspace.cloud.databricks.com
 
 4. **Verify Results**
    ```sql
-   SELECT * FROM pilotws.pilotschema.patients LIMIT 10;
+   SELECT * FROM your_catalog.your_schema.patients LIMIT 10;
    ```
 
 5. **Customize and Scale**
@@ -371,10 +382,11 @@ databricks auth login --host https://your-workspace.cloud.databricks.com
 
 Before deploying:
 - [ ] Databricks CLI installed
-- [ ] Workspace URL configured in `databricks.yml`
-- [ ] Authentication configured
-- [ ] Bundle validated successfully
-- [ ] Target catalog/schema exists
+- [ ] **Workspace URL configured** in `bundle/databricks.yml` (line 42) - THIS IS REQUIRED!
+- [ ] **Catalog and schema configured** in environment targets
+- [ ] Authentication configured (`databricks configure --token`)
+- [ ] Bundle validated successfully (`databricks bundle validate -t dev`)
+- [ ] Target catalog/schema exists in workspace
 - [ ] AI endpoint access verified
 
 After deployment:

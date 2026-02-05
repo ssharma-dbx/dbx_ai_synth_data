@@ -389,45 +389,43 @@ Use Faker directly when:
 ## File Structure
 
 ```
-DataGenerator/
+dbx_ai_synth_data/
 │
-├── ai_data_generator.py     [Main script - 700+ lines]
-│   ├── Configuration Section (lines 1-100)
+├── ai_data_generator.py     [Main script - 593 lines]
+│   ├── Configuration Section (lines 1-50)
 │   ├── Schema Generation (lines 100-200)
 │   ├── Data Generation (lines 200-500)
-│   ├── Execution & Storage (lines 500-700)
-│   └── Examples & Docs (lines 700+)
+│   └── Execution & Storage (lines 500-593)
 │
-├── README.md                [Full documentation]
-│   ├── Overview
-│   ├── Features
-│   ├── Quick Start
-│   ├── Usage Examples
-│   ├── Configuration Reference
-│   └── Troubleshooting
+├── bundle/                  [Databricks Asset Bundle]
+│   ├── databricks.yml      [Bundle config with sync]
+│   ├── job_parameters.conf [Parameter templates]
+│   ├── README.md           [Bundle documentation]
+│   └── resources/
+│       └── jobs.yml        [Job definitions]
 │
-├── QUICKSTART.md            [3-minute getting started]
-│   ├── 3-Step Process
-│   ├── Common Scenarios
-│   └── Quick Tips
+├── docs/                   [Documentation]
+│   ├── QUICKSTART.md       [3-minute getting started]
+│   ├── EXAMPLES.md         [19+ ready-to-use templates]
+│   ├── DEPLOYMENT.md       [Complete deployment guide]
+│   ├── JOB_SUMMARY.md      [Job deployment overview]
+│   ├── QUICK_REFERENCE.md  [Command reference]
+│   └── ARCHITECTURE.md     [This file]
 │
-├── EXAMPLES.md              [19+ ready-to-use templates]
-│   ├── Healthcare (3 examples)
-│   ├── Retail (3 examples)
-│   ├── Finance (3 examples)
-│   ├── Insurance (2 examples)
-│   ├── Manufacturing (2 examples)
-│   ├── Logistics (2 examples)
-│   ├── Education (2 examples)
-│   ├── Hospitality (1 example)
-│   └── Telecommunications (1 example)
-│
-└── ARCHITECTURE.md          [This file]
-    ├── Workflow Diagrams
-    ├── Component Architecture
-    ├── Data Flow Examples
-    ├── Performance Profile
-    └── Comparison Analysis
+└── README.md               [Main documentation]
+
+### Bundle Configuration
+
+The bundle uses a `sync` section to automatically deploy files:
+
+```yaml
+sync:
+  paths:
+    - source: ../ai_data_generator.py
+      target: ai_data_generator.py
+```
+
+Jobs reference the synced file using `${workspace.file_path}/ai_data_generator`, which resolves to the bundle's deployment path (e.g., `~/.bundle/ai_data_generator/dev/` for dev environment).
 ```
 
 ## Extension Points

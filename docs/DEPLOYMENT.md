@@ -32,21 +32,38 @@ This guide explains how to deploy and run the AI Data Generator jobs using Datab
 
 ## 🚀 Quick Start
 
-### Step 1: Update Configuration
+### Step 1: Update Configuration ⚠️ REQUIRED
 
-Edit `databricks.yml` and update the workspace URL:
+Edit `bundle/databricks.yml` and update the workspace URL (line 42):
 
 ```yaml
 workspace:
-  host: "https://your-workspace-url.cloud.databricks.com"
+  host: "https://your-actual-workspace.cloud.databricks.net/"
+```
+
+**This is mandatory!** Replace with your actual Databricks workspace URL.
+
+Also update the catalog and schema for your environment:
+
+```yaml
+targets:
+  dev:
+    variables:
+      catalog: your_catalog_name
+      schema: your_schema_name
 ```
 
 ### Step 2: Validate Bundle
 
 ```bash
-cd DataGenerator
-databricks bundle validate
+cd bundle
+databricks bundle validate -t dev
 ```
+
+This will check that:
+- Workspace URL is set
+- YAML syntax is correct
+- All referenced files exist (ai_data_generator.py will be synced automatically)
 
 ### Step 3: Deploy to Dev Environment
 
@@ -70,13 +87,28 @@ databricks bundle run generate_transactions_job -t dev
 ## 📁 Bundle Structure
 
 ```
-DataGenerator/
-├── databricks.yml              # Main bundle configuration
-├── resources/
-│   └── jobs.yml               # Job definitions
-├── ai_data_generator.py       # The notebook/script
-└── DEPLOYMENT.md              # This file
+dbx_ai_synth_data/
+├── ai_data_generator.py       # The notebook (automatically synced to workspace)
+├── bundle/
+│   ├── databricks.yml        # Main bundle config (with sync configuration)
+│   └── resources/
+│       └── jobs.yml          # Job definitions
+└── docs/
+    └── DEPLOYMENT.md         # This file
 ```
+
+### How File Sync Works
+
+The bundle configuration includes a `sync` section that automatically uploads `ai_data_generator.py` to the workspace:
+
+```yaml
+sync:
+  paths:
+    - source: ../ai_data_generator.py
+      target: ai_data_generator.py
+```
+
+Jobs reference the notebook using the `${workspace.file_path}` variable, which resolves to the bundle's deployment path.
 
 ## 🎯 Available Jobs
 
@@ -99,7 +131,7 @@ Pre-configured job to generate healthcare patient records.
 
 **Output:**
 - Table: `{catalog}.{schema}.patients`
-- Rows: 500
+- Rows: 50,000
 - Constraints: Patient ID from 10000, ages 18-95
 
 ### 3. `generate_products_job`
@@ -107,7 +139,7 @@ Pre-configured job to generate retail product inventory.
 
 **Output:**
 - Table: `{catalog}.{schema}.products`
-- Rows: 200
+- Rows: 20,000
 - Custom schema with product details
 
 ### 4. `generate_transactions_job`
@@ -115,16 +147,8 @@ Pre-configured job to generate finance transactions.
 
 **Output:**
 - Table: `{catalog}.{schema}.transactions`
-- Rows: 1000
+- Rows: 10,000
 - Transaction amounts $10-$10,000
-
-### 5. `generate_complete_dataset_job`
-Multi-task job that generates related tables sequentially.
-
-**Output:**
-- `customers` table (500 rows)
-- `products` table (200 rows)
-- `orders` table (1000 rows) - depends on customers and products
 
 ## 🔧 Customizing Jobs
 
@@ -143,7 +167,7 @@ base_parameters:
 
 ### Method 2: Create New Job
 
-Add a new job definition to `resources/jobs.yml`:
+Add a new job definition to `bundle/resources/jobs.yml`:
 
 ```yaml
 resources:
@@ -151,19 +175,17 @@ resources:
     my_custom_job:
       name: "[${bundle.target}] My Custom Data Generator"
       
-      job_clusters:
-        - job_cluster_key: my_cluster
+      tasks:
+        - task_key: generate_my_data
           new_cluster:
             spark_version: ${var.cluster_spark_version}
             node_type_id: ${var.cluster_node_type}
-            num_workers: 2
-      
-      tasks:
-        - task_key: generate_my_data
-          job_cluster_key: my_cluster
+            num_workers: 0
+            spark_conf:
+              spark.databricks.cluster.profile: serverless
           
           notebook_task:
-            notebook_path: ../ai_data_generator.py
+            notebook_path: ${workspace.file_path}/ai_data_generator
             base_parameters:
               industry: "manufacturing"
               domain: "equipment maintenance"
@@ -175,6 +197,8 @@ resources:
               custom_schema_json: ""
               column_constraints_json: '{"equipment_id": "Format like EQ-1001"}'
 ```
+
+**Important**: Always use `${workspace.file_path}/ai_data_generator` for the notebook path.
 
 ### Method 3: Override Parameters at Runtime
 
@@ -201,8 +225,8 @@ databricks bundle run ai_data_generator_job -t dev
 
 **Configuration:**
 - Workspace: `~/.bundle/ai_data_generator/dev`
-- Catalog: `pilotws` (default)
-- Schema: `pilotschema` (default)
+- Catalog: `dev_catalog` (default - update in databricks.yml)
+- Schema: `dev_schema` (default - update in databricks.yml)
 
 ### Staging (`staging`)
 ```bash
@@ -347,7 +371,7 @@ databricks bundle run ai_data_generator_job -t staging
 ### Use Case 3: Generate Multiple Related Tables
 
 ```bash
-# Use the multi-table job
+# Use the multi-table job (create your own in resources/jobs.yml)
 databricks bundle deploy -t dev
 databricks bundle run generate_complete_dataset_job -t dev
 
@@ -355,6 +379,12 @@ databricks bundle run generate_complete_dataset_job -t dev
 # - customers table
 # - products table  
 # - orders table (with foreign keys)
+
+# Or run jobs in parallel
+databricks bundle run generate_patients_job -t dev &
+databricks bundle run generate_products_job -t dev &
+databricks bundle run generate_transactions_job -t dev &
+wait
 ```
 
 ### Use Case 4: Scheduled Daily Generation
@@ -401,10 +431,13 @@ databricks jobs get --job-id <job-id>
 ### Issue: Notebook not found
 
 ```bash
-# Verify notebook path in jobs.yml
-notebook_path: ../ai_data_generator.py
+# Verify the sync configuration exists in databricks.yml
+# The notebook is automatically synced from ../ai_data_generator.py
 
-# Ensure notebook is deployed
+# Ensure notebook path in jobs.yml uses:
+notebook_path: ${workspace.file_path}/ai_data_generator
+
+# Re-deploy bundle
 databricks bundle deploy -t dev
 ```
 

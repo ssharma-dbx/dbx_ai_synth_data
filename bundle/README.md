@@ -18,21 +18,32 @@ Note: The notebook (ai_data_generator.py) is synced from the parent directory.
 
 The bundle automatically syncs the notebook to the workspace:
 
-- **Local**: `../ai_data_generator.py`
-- **Workspace**: `${workspace.root_path}/files/ai_data_generator.py`
+- **Local**: `../ai_data_generator.py` (parent directory)
+- **Workspace**: `${workspace.file_path}/ai_data_generator` (in the bundle's root path)
+- **Jobs Reference**: `${workspace.file_path}/ai_data_generator` (relative path variable)
 
-During deployment, the notebook is uploaded to your workspace and jobs reference the synced copy.
+During deployment, the notebook is automatically uploaded to your workspace at the bundle's root path, and jobs reference it using the `${workspace.file_path}` variable for portability across environments.
+
+### Why Relative Paths?
+
+Using `${workspace.file_path}` instead of hardcoded paths provides:
+- ✅ **Environment-agnostic**: Works in dev, staging, and prod without changes
+- ✅ **User-agnostic**: No hardcoded usernames or paths
+- ✅ **Portable**: Anyone can deploy to their workspace
+- ✅ **Maintainable**: Single source of truth for file locations
 
 ## 🚀 Quick Start
 
-### 1. Configure Workspace
+### 1. Configure Workspace ⚠️ REQUIRED
 
-Edit `databricks.yml` (line 36):
+Edit `databricks.yml` (line 42) with your actual workspace URL:
 
 ```yaml
 workspace:
-  host: "https://your-actual-workspace.cloud.databricks.com"
+  host: "https://your-actual-workspace.cloud.databricks.net/"
 ```
+
+**This is mandatory!** The bundle cannot deploy without a valid workspace URL.
 
 ### 2. Authenticate
 
@@ -74,7 +85,7 @@ databricks bundle run ai_data_generator_job -t dev \
 **Default Parameters:**
 - Industry: healthcare
 - Domain: patient records
-- Rows: 100
+- Rows: 50,000
 - All parameters can be overridden at runtime
 
 ### 2. generate_patients_job
@@ -82,7 +93,7 @@ databricks bundle run ai_data_generator_job -t dev \
 
 **Generates:**
 - Table: `{catalog}.{schema}.patients`
-- Rows: 500
+- Rows: 50,000
 - Constraints: Patient ID from 10000, ages 18-95
 
 ### 3. generate_products_job
@@ -90,7 +101,7 @@ databricks bundle run ai_data_generator_job -t dev \
 
 **Generates:**
 - Table: `{catalog}.{schema}.products`
-- Rows: 200
+- Rows: 20,000
 - Custom schema with product details
 
 ### 4. generate_transactions_job
@@ -98,16 +109,8 @@ databricks bundle run ai_data_generator_job -t dev \
 
 **Generates:**
 - Table: `{catalog}.{schema}.transactions`
-- Rows: 1000
+- Rows: 10,000
 - Amounts: $10-$10,000
-
-### 5. generate_complete_dataset_job
-**Multi-table generation** - Creates related tables
-
-**Generates:**
-- `customers` (500 rows)
-- `products` (200 rows)
-- `orders` (1000 rows) - depends on customers and products
 
 ## 🌍 Environments
 
@@ -117,8 +120,8 @@ databricks bundle deploy -t dev
 ```
 
 - Path: `~/.bundle/ai_data_generator/dev`
-- Catalog: `pilotws`
-- Schema: `pilotschema`
+- Catalog: `dev_catalog` (default, update in databricks.yml)
+- Schema: `dev_schema` (default, update in databricks.yml)
 
 ### Staging (staging)
 ```bash
@@ -126,8 +129,8 @@ databricks bundle deploy -t staging
 ```
 
 - Path: `/Shared/.bundle/ai_data_generator/staging`
-- Catalog: `staging_catalog`
-- Schema: `staging_schema`
+- Catalog: `staging_catalog` (update in databricks.yml)
+- Schema: `staging_schema` (update in databricks.yml)
 
 ### Production (prod)
 ```bash
@@ -135,8 +138,8 @@ databricks bundle deploy -t prod
 ```
 
 - Path: `/Shared/.bundle/ai_data_generator/prod`
-- Catalog: `prod_catalog`
-- Schema: `prod_schema`
+- Catalog: `prod_catalog` (update in databricks.yml)
+- Schema: `prod_schema` (update in databricks.yml)
 
 ## ⚙️ Configuration
 
@@ -147,10 +150,12 @@ These variables can be overridden per environment:
 | Variable | Default | Description |
 |----------|---------|-------------|
 | `environment` | "dev" | Environment name |
-| `catalog` | "pilotws" | Unity Catalog name |
-| `schema` | "pilotschema" | Schema name |
-| `cluster_node_type` | "i3.xlarge" | Node type for clusters |
-| `cluster_spark_version` | "14.3.x-scala2.12" | Databricks runtime version |
+| `catalog` | "default_catalog" | Unity Catalog name (⚠️ Update for your workspace!) |
+| `schema` | "default_schema" | Schema name (⚠️ Update for your workspace!) |
+| `cluster_node_type` | (commented out) | Node type for clusters - define if not using serverless |
+| `cluster_spark_version` | (commented out) | Databricks runtime version - define if not using serverless |
+
+**Note**: The `cluster_node_type` and `cluster_spark_version` variables are commented out by default. The jobs are configured to use serverless compute. If you want to use traditional clusters, uncomment these variables and update the cluster configuration in `resources/jobs.yml`.
 
 ### Override Variables
 
@@ -196,17 +201,16 @@ resources:
   jobs:
     my_custom_job:
       name: "[${bundle.target}] My Custom Job"
-      job_clusters:
-        - job_cluster_key: my_cluster
+      tasks:
+        - task_key: generate_my_data
           new_cluster:
             spark_version: ${var.cluster_spark_version}
             node_type_id: ${var.cluster_node_type}
-            num_workers: 2
-      tasks:
-        - task_key: generate_my_data
-          job_cluster_key: my_cluster
+            num_workers: 0
+            spark_conf:
+              spark.databricks.cluster.profile: serverless
           notebook_task:
-            notebook_path: ../../ai_data_generator.py
+            notebook_path: ${workspace.file_path}/ai_data_generator
             base_parameters:
               industry: "manufacturing"
               domain: "equipment maintenance"
@@ -218,6 +222,8 @@ resources:
               custom_schema_json: ""
               column_constraints_json: '{}'
 ```
+
+**Important**: Use `${workspace.file_path}/ai_data_generator` for the notebook path - this ensures the job works across all environments.
 
 ### Use Parameter Templates
 
@@ -280,9 +286,14 @@ Error: variable environment is not defined but is assigned a value
 Error: notebook not found
 ```
 
-**Solution:** The notebook path is relative to the resources folder:
+**Solution:** The notebook is automatically synced from the parent directory. The notebook path uses a relative variable:
 ```yaml
-notebook_path: ../../ai_data_generator.py  # Correct
+notebook_path: ${workspace.file_path}/ai_data_generator
+```
+
+Make sure you've deployed the bundle:
+```bash
+databricks bundle deploy -t dev
 ```
 
 ### Issue: Authentication failed
@@ -295,86 +306,16 @@ databricks configure --token
 
 ### More Help
 
-See `../docs/TROUBLESHOOTING.md` for comprehensive troubleshooting guide.
-
-## 📊 Job Parameters
-
-All jobs accept these 9 parameters:
-
-| Parameter | Required | Type | Example |
-|-----------|----------|------|---------|
-| `industry` | Yes | string | "healthcare" |
-| `domain` | Yes | string | "patient records" |
-| `table_name` | Yes | string | "patients" |
-| `target_catalog` | Yes | string | "pilotws" |
-| `target_schema` | Yes | string | "pilotschema" |
-| `num_rows` | Yes | string | "100" |
-| `ai_model_endpoint` | Yes | string | "databricks-meta-llama-3-3-70b-instruct" |
-| `custom_schema_json` | No | JSON string | `'{"col": "TYPE"}'` |
-| `column_constraints_json` | No | JSON string | `'{"col": "constraint"}'` |
-
-## 🎯 Example Workflows
-
-### Test in Dev, Deploy to Prod
-
-```bash
-# 1. Test with small dataset in dev
-databricks bundle deploy -t dev
-databricks bundle run ai_data_generator_job -t dev --param num_rows="10"
-
-# 2. Verify results
-databricks sql "SELECT * FROM pilotws.pilotschema.patients LIMIT 10"
-
-# 3. Deploy to staging
-databricks bundle deploy -t staging
-databricks bundle run ai_data_generator_job -t staging --param num_rows="100"
-
-# 4. Deploy to production
-databricks bundle deploy -t prod
-databricks bundle run ai_data_generator_job -t prod --param num_rows="10000"
-```
-
-### Generate Multiple Tables
-
-```bash
-# Run jobs in parallel for different tables
-databricks bundle run generate_patients_job -t dev &
-databricks bundle run generate_products_job -t dev &
-databricks bundle run generate_transactions_job -t dev &
-wait
-```
-
-### Schedule Daily Generation
-
-Uncomment the schedule section in `resources/jobs.yml`:
-
-```yaml
-schedule:
-  quartz_cron_expression: "0 0 2 * * ?"  # Daily at 2 AM
-  timezone_id: "America/Los_Angeles"
-  pause_status: UNPAUSED
-```
-
-Then deploy:
-
-```bash
-databricks bundle deploy -t prod
-```
-
-## 📚 Additional Documentation
-
-- **Full Deployment Guide**: `../docs/DEPLOYMENT.md`
-- **Quick Reference**: `../docs/QUICK_REFERENCE.md`
-- **Usage Examples**: `../docs/EXAMPLES.md`
-- **Troubleshooting**: `../docs/TROUBLESHOOTING.md`
+See `../docs/DEPLOYMENT.md` for comprehensive deployment guide.
 
 ## ✅ Checklist
 
 Before deploying:
-- [ ] Workspace URL updated in `databricks.yml`
-- [ ] Authentication configured
-- [ ] Bundle validated successfully
-- [ ] Target catalog/schema exists
+- [ ] **Workspace URL updated** in `databricks.yml` (line 42) - THIS IS REQUIRED!
+- [ ] Catalog and schema variables updated in `databricks.yml`
+- [ ] Authentication configured (`databricks configure --token`)
+- [ ] Bundle validated successfully (`databricks bundle validate -t dev`)
+- [ ] Target catalog/schema exists in your workspace
 - [ ] AI endpoint access verified
 
 ## 🔗 Links
@@ -385,6 +326,10 @@ Before deploying:
 
 ---
 
-**Quick Start:** Update `databricks.yml`, run `databricks bundle deploy -t dev`, then `databricks bundle run generate_patients_job -t dev`
+**Quick Start:** 
+1. Update workspace URL in `databricks.yml` (line 42) ⚠️ REQUIRED
+2. Update catalog/schema in environment targets
+3. Run `databricks bundle deploy -t dev`
+4. Run `databricks bundle run generate_patients_job -t dev`
 
-**Need Help?** Check `../docs/TROUBLESHOOTING.md` or `../docs/DEPLOYMENT.md`
+**Need Help?** Check `../docs/DEPLOYMENT.md` for detailed deployment guide

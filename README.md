@@ -5,27 +5,29 @@ A powerful, flexible AI-driven data generation tool for Databricks that uses fou
 ## 📁 Folder Structure
 
 ```
-DataGenerator/
+dbx_ai_synth_data/
 ├── ai_data_generator.py          # Main notebook/script
 │
 ├── bundle/                        # Databricks Asset Bundle
-│   ├── databricks.yml            # Main bundle configuration
+│   ├── databricks.yml            # Main bundle configuration (with sync)
 │   ├── job_parameters.conf       # Parameter templates
+│   ├── README.md                 # Bundle-specific documentation
 │   └── resources/
-│       └── jobs.yml              # Job definitions (5 pre-configured jobs)
+│       └── jobs.yml              # Job definitions (4 pre-configured jobs)
 │
 └── docs/                         # Documentation
-    ├── INDEX.md                  # Start here - Navigation guide
     ├── QUICKSTART.md             # 3-minute getting started
-    ├── README.md                 # Full feature documentation
     ├── EXAMPLES.md               # 19+ usage examples
     ├── JOB_SUMMARY.md            # Job deployment overview
     ├── DEPLOYMENT.md             # Complete deployment guide
     ├── QUICK_REFERENCE.md        # Command reference card
-    ├── TROUBLESHOOTING.md        # Common issues & solutions
-    ├── FIX_SUMMARY.md            # Recent fixes
     └── ARCHITECTURE.md           # Technical architecture
 ```
+
+### Key Features:
+- ✅ **Automatic File Sync**: `ai_data_generator.py` automatically syncs to workspace during deployment
+- ✅ **Relative Paths**: Jobs use `${workspace.file_path}` for environment-agnostic deployment
+- ✅ **Multi-Environment**: Dev, staging, and prod configurations included
 
 ## 🚀 Quick Start
 
@@ -37,20 +39,26 @@ DataGenerator/
 
 ### Option 2: Deploy as Job (Recommended)
 
+**Before deploying, you MUST update the workspace URL in `bundle/databricks.yml`:**
+
 ```bash
 # 1. Navigate to bundle directory
 cd bundle
 
-# 2. Update workspace URL in databricks.yml
-# Edit line 36: host: "https://your-workspace.cloud.databricks.com"
+# 2. IMPORTANT: Update workspace URL in databricks.yml (line 42)
+# Edit: host: "https://your-actual-workspace.cloud.databricks.net/"
+# Replace with your actual Databricks workspace URL
 
 # 3. Configure authentication
 databricks configure --token
 
-# 4. Deploy
+# 4. Validate bundle
+databricks bundle validate -t dev
+
+# 5. Deploy (automatically syncs ai_data_generator.py to workspace)
 databricks bundle deploy -t dev
 
-# 5. Run
+# 6. Run
 databricks bundle run generate_patients_job -t dev
 ```
 
@@ -58,15 +66,13 @@ databricks bundle run generate_patients_job -t dev
 
 | Document | Purpose | Start Here If... |
 |----------|---------|------------------|
-| **docs/INDEX.md** | Navigation & overview | You're new to this tool |
 | **docs/QUICKSTART.md** | 3-minute start | You want to run it quickly |
 | **docs/JOB_SUMMARY.md** | Job deployment overview | You want to deploy as a job |
 | **docs/DEPLOYMENT.md** | Full deployment guide | You need detailed deployment steps |
 | **docs/QUICK_REFERENCE.md** | Command reference | You need quick command lookup |
 | **docs/EXAMPLES.md** | 19+ templates | You need example configurations |
-| **docs/README.md** | Complete features | You want to understand everything |
-| **docs/TROUBLESHOOTING.md** | Problem solving | You're having issues |
 | **docs/ARCHITECTURE.md** | Technical details | You want deep technical knowledge |
+| **bundle/README.md** | Bundle configuration | You want bundle deployment details |
 
 ## ✨ Key Features
 
@@ -132,13 +138,12 @@ databricks bundle run ai_data_generator_job -t dev \
 
 ## 🔧 Pre-Configured Jobs
 
-The bundle includes 5 ready-to-use jobs:
+The bundle includes 4 ready-to-use jobs:
 
 1. **ai_data_generator_job** - Generic template (fully customizable)
-2. **generate_patients_job** - Healthcare patients (500 rows)
-3. **generate_products_job** - Retail products (200 rows)
-4. **generate_transactions_job** - Finance transactions (1000 rows)
-5. **generate_complete_dataset_job** - Multi-table generation
+2. **generate_patients_job** - Healthcare patients (50,000 rows)
+3. **generate_products_job** - Retail products (20,000 rows)  
+4. **generate_transactions_job** - Finance transactions (10,000 rows)
 
 ## 📊 Performance
 
@@ -172,28 +177,44 @@ databricks bundle deploy -t prod
 
 Having issues? Check:
 
-1. **docs/TROUBLESHOOTING.md** - Solutions for 10+ common errors
-2. **docs/FIX_SUMMARY.md** - Recent fixes
-3. **docs/DEPLOYMENT.md** - Detailed deployment guide
+1. **bundle/README.md** - Bundle-specific deployment guide
+2. **docs/DEPLOYMENT.md** - Detailed deployment guide
+3. **docs/JOB_SUMMARY.md** - Job configuration overview
 
 Common fixes:
-- Update workspace URL in `bundle/databricks.yml`
+- **Update workspace URL** in `bundle/databricks.yml` (line 42) - THIS IS REQUIRED!
 - Configure authentication: `databricks configure --token`
 - Validate bundle: `databricks bundle validate -t dev`
+- Verify cluster variables are defined (or use serverless compute)
 
 ## 🔗 Links
 
 - **Documentation**: See `docs/` folder
-- **Bundle Configuration**: See `bundle/` folder
+- **Bundle Configuration**: See `bundle/` folder (⚠️ Update workspace URL before deploying!)
 - **Parameter Templates**: See `bundle/job_parameters.conf`
 - **Databricks Bundles**: [Official Documentation](https://docs.databricks.com/dev-tools/bundles/)
+
+### Important: Workspace Configuration
+
+Before deploying, you **MUST** update the workspace host in `bundle/databricks.yml`:
+
+```yaml
+workspace:
+  host: "https://your-actual-workspace.cloud.databricks.net/"
+```
+
+The bundle automatically syncs `ai_data_generator.py` from the root directory to your workspace during deployment.
 
 ## 📞 Getting Help
 
 1. **Quick Start**: Read `docs/QUICKSTART.md`
-2. **Examples**: Check `docs/EXAMPLES.md` for 19+ templates
-3. **Troubleshooting**: Review `docs/TROUBLESHOOTING.md`
+2. **Bundle Setup**: Check `bundle/README.md` for workspace configuration
+3. **Examples**: Check `docs/EXAMPLES.md` for 19+ templates
 4. **Full Guide**: Read `docs/DEPLOYMENT.md`
+
+### Before You Start
+
+**⚠️ IMPORTANT**: Update `bundle/databricks.yml` with your workspace URL before deploying!
 
 ## ✅ Prerequisites
 

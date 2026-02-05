@@ -201,9 +201,11 @@ Check out `EXAMPLES.md` for 19+ ready-to-use templates including:
 
 ## Support
 
-For detailed documentation, see `README.md`
-For configuration examples, see `EXAMPLES.md`
-For this quick start, you're already here! 🎉
+For detailed documentation, see main `README.md` in the root folder.
+For configuration examples, see `EXAMPLES.md`.
+For bundle deployment, see `../bundle/README.md` and `DEPLOYMENT.md`.
+
+**Important**: Before deploying as a job, update the workspace URL in `../bundle/databricks.yml` (line 42)!
 
 ---
 

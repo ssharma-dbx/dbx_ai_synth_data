@@ -4,8 +4,12 @@
 
 ### Setup & Validation
 ```bash
-# Validate bundle
-databricks bundle validate
+# Navigate to bundle directory
+cd bundle
+
+# Update workspace URL in databricks.yml (line 42) - REQUIRED!
+# Then validate bundle
+databricks bundle validate -t dev
 
 # View what will be deployed
 databricks bundle summary -t dev
@@ -13,9 +17,12 @@ databricks bundle summary -t dev
 
 ### Deploy
 ```bash
+# From bundle directory
 databricks bundle deploy -t dev      # Development
 databricks bundle deploy -t staging  # Staging
 databricks bundle deploy -t prod     # Production
+
+# Note: Automatically syncs ai_data_generator.py to workspace
 ```
 
 ### Run Jobs
@@ -70,34 +77,30 @@ Generic template - customize all parameters.
 ### 2. generate_patients_job
 - Industry: Healthcare
 - Domain: Patient records
-- Rows: 500
+- Rows: 50,000
 - Constraints: Patient ID from 10000, ages 18-95
 
 ### 3. generate_products_job
 - Industry: Retail
 - Domain: Product inventory
-- Rows: 200
+- Rows: 20,000
 - Custom schema with product details
 
 ### 4. generate_transactions_job
 - Industry: Finance
 - Domain: Transactions
-- Rows: 1000
+- Rows: 10,000
 - Amounts: $10-$10,000
-
-### 5. generate_complete_dataset_job
-Multi-table generation:
-- Customers (500 rows)
-- Products (200 rows)
-- Orders (1000 rows with FK)
 
 ## 🌍 Environments
 
 | Environment | Path | Catalog | Schema |
 |-------------|------|---------|--------|
-| **dev** | `~/.bundle/.../dev` | pilotws | pilotschema |
+| **dev** | `~/.bundle/.../dev` | dev_catalog | dev_schema |
 | **staging** | `/Shared/.bundle/.../staging` | staging_catalog | staging_schema |
 | **prod** | `/Shared/.bundle/.../prod` | prod_catalog | prod_schema |
+
+**Note**: Update catalog and schema names in `bundle/databricks.yml` for your workspace.
 
 ## 📖 Documentation Quick Links
 
@@ -105,7 +108,7 @@ Multi-table generation:
 |------|----------|---------|
 | Overview | JOB_SUMMARY.md | `cat JOB_SUMMARY.md` |
 | Deployment | DEPLOYMENT.md | `cat DEPLOYMENT.md` |
-| Parameters | job_parameters.conf | `cat job_parameters.conf` |
+| Parameters | ../bundle/job_parameters.conf | `cat ../bundle/job_parameters.conf` |
 | Examples | EXAMPLES.md | `cat EXAMPLES.md` |
 
 ## 🔧 Common Patterns
@@ -127,19 +130,26 @@ databricks bundle run ai_data_generator_job -t prod --param num_rows="10000"
 
 ### Pattern 2: Custom Job Creation
 ```yaml
-# Add to resources/jobs.yml
+# Add to bundle/resources/jobs.yml
 my_custom_job:
   name: "[${bundle.target}] My Job"
-  job_clusters: [...]
   tasks:
     - task_key: my_task
+      new_cluster:
+        spark_version: ${var.cluster_spark_version}
+        node_type_id: ${var.cluster_node_type}
+        num_workers: 0
+        spark_conf:
+          spark.databricks.cluster.profile: serverless
       notebook_task:
-        notebook_path: ../ai_data_generator.py
+        notebook_path: ${workspace.file_path}/ai_data_generator
         base_parameters:
           industry: "your_industry"
           domain: "your_domain"
           # ... other params
 ```
+
+**Important**: Always use `${workspace.file_path}/ai_data_generator` for portability.
 
 ### Pattern 3: Multi-Table Generation
 ```yaml
@@ -161,11 +171,12 @@ tasks:
 
 | Issue | Solution |
 |-------|----------|
-| Validation fails | Check YAML syntax in databricks.yml |
+| Validation fails | Check YAML syntax in databricks.yml and workspace URL |
 | Job not found | Re-deploy: `databricks bundle deploy -t dev` |
 | Permission denied | Run: `databricks auth login` |
 | AI endpoint error | Try different model in parameters |
-| Notebook not found | Check `notebook_path` in jobs.yml |
+| Notebook not found | Verify sync config in databricks.yml, use ${workspace.file_path}/ai_data_generator |
+| Workspace URL missing | Update line 42 in bundle/databricks.yml - REQUIRED! |
 
 ## 📊 Performance Guide
 
@@ -180,10 +191,12 @@ tasks:
 ## 🎯 Quick Start (3 Steps)
 
 ```bash
-# 1. Configure
-# Edit databricks.yml - set workspace URL
+# 1. Configure - IMPORTANT!
+cd bundle
+# Edit databricks.yml - set workspace URL (line 42)
+# Update catalog and schema for your workspace
 
-# 2. Deploy
+# 2. Deploy (automatically syncs ai_data_generator.py)
 databricks bundle deploy -t dev
 
 # 3. Run
