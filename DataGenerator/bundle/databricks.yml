@@ -22,24 +22,24 @@ variables:
   
   catalog:
     description: "Target Unity Catalog"
-    default: "ssharma"
+    default: "default_catalog"
   
   schema:
     description: "Target Schema"
-    default: "ausunity"
+    default: "default_schema"
   
-  cluster_node_type:
-    description: "Node type for compute cluster (Azure)"
-    default: "Standard_DS3_v2"
+  # cluster_node_type:
+  #   description: "Node type for compute cluster (Azure)"
+  #   default: "Standard_DS3_v2"
   
-  cluster_spark_version:
-    description: "Databricks Runtime version"
-    default: "14.3.x-scala2.12"
+  # cluster_spark_version:
+  #   description: "Databricks Runtime version"
+  #   default: "14.3.x-scala2.12"
 
 # Workspace configuration
 # Update this with your actual workspace URL before deploying
 workspace:
-  host: "https://adb-984752964297111.11.azuredatabricks.net/"
+  host: "https://your_databricks_workspace_url.cloud.databricks.com/"
   # Uncomment and configure if needed:
   # profile: "YOUR_PROFILE_NAME"
 
@@ -52,8 +52,8 @@ targets:
       root_path: ~/.bundle/${bundle.name}/${bundle.target}
     variables:
       environment: dev
-      catalog: ssharma
-      schema: ausunity
+      catalog: dev_catalog
+      schema: dev_schema
   
   staging:
     mode: production
